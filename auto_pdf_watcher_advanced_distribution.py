@@ -1884,6 +1884,14 @@ class AutoPDFWatcherAdvanced:
         except Exception as e:
             self.log_message(f"❌ 監視状態更新エラー: {e}")
     
+    def restart_after_settings_change(self):
+        """設定変更後の監視再開"""
+        try:
+            self.log_message("▶️ 設定変更完了、監視を再開...")
+            self.start_monitoring()
+        except Exception as e:
+            self.log_message(f"❌ 監視再開エラー: {e}")
+    
     def configure_selected_folder(self):
         """選択されたフォルダの設定"""
         selection = self.folder_tree.selection()
@@ -1902,9 +1910,15 @@ class AutoPDFWatcherAdvanced:
                 self.save_config()
                 self.log_message(f"⚙️ フォルダ設定を更新: {dialog.result['path']}")
                 
-                # 監視中の場合は設定変更を反映
+                # 監視中の場合は一時停止して再開（二重監視を防止）
                 if self.is_watching and hasattr(self, 'observers'):
-                    self.update_folder_monitoring(old_folder_info, dialog.result)
+                    self.log_message("⏸️ 設定変更のため監視を一時停止...")
+                    was_watching = True
+                    self.stop_monitoring()
+                    # 短い遅延の後に再開
+                    threading.Timer(1.0, lambda: self.restart_after_settings_change()).start()
+                else:
+                    was_watching = False
         else:
             messagebox.showwarning("警告", "設定するフォルダを選択してください")
     
